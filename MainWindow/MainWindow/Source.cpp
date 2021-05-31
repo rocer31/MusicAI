@@ -425,10 +425,23 @@ int main(int argc, char** argv)
 
     int ctr = 0;
     int past_key = 0;
+    ////////////////////////////////////////////
+    int repeat_chance = 1; //for testing
+    ////////////////////////////////////////////
+
     for (auto it = prog.begin(); it != prog.end(); it++) {
         cout << it->get_symbol() << endl;
         voicing_choice = closest_voicing(voicing_choice, *it);
-        play_chord(*it, voicing_choice, it->get_quality(), it->get_root() + key, q, synth, roots, measure, drum_sounds, beats);
+        if ((ctr != 0) && (rand() % repeat_chance < 1)) {
+            if ((fmod((float)ctr, length) == 0.0) && ((it + 1) != prog.end())) {
+                if (current_key == form_nums.at(form_place + 1)) {
+                    repeat(drum_sounds);
+                }
+            }
+        }
+        else {
+            play_chord(*it, voicing_choice, it->get_quality(), it->get_root() + key, q, synth, roots, measure, drum_sounds, beats);
+        }
         ctr++;
         if ((fmod((float)ctr, length) == 0.0) && ((it + 1) != prog.end())) {
             form_place++;

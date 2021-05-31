@@ -281,7 +281,7 @@ int main(int argc, char** argv)
 
     // choose form -f
     // -form is currently AABA
-    
+
     // form vector to be able to read in the form
     vector<char> form = {};
 
@@ -359,7 +359,7 @@ int main(int argc, char** argv)
 
     // pick a random A key
     if (!chose_key) { a_key = rand() % 12; }
-    
+
     // pick a B key, that is modulated from the A key
     int b_key;
     if (a_key + 5 > 11) {
@@ -425,16 +425,29 @@ int main(int argc, char** argv)
 
     int ctr = 0;
     int past_key = 0;
+    ////////////////////////////////////////////
+    int repeat_chance = 1; //for testing
+    ////////////////////////////////////////////
+
     for (auto it = prog.begin(); it != prog.end(); it++) {
         cout << it->get_symbol() << endl;
         voicing_choice = closest_voicing(voicing_choice, *it);
-        play_chord(*it, voicing_choice, it->get_quality(), it->get_root() + key, q, synth, roots, measure, drum_sounds, beats);
+        if ((ctr != 0) && (rand() % repeat_chance < 1)) {
+            if ((fmod((float)ctr, length) == 0.0) && ((it + 1) != prog.end())) {
+                if (current_key == form_nums.at(form_place + 1)) {
+                    repeat(drum_sounds);
+                }
+            }
+        }
+        else {
+            play_chord(*it, voicing_choice, it->get_quality(), it->get_root() + key, q, synth, roots, measure, drum_sounds, beats);
+        }
         ctr++;
         if ((fmod((float)ctr, length) == 0.0) && ((it + 1) != prog.end())) {
             form_place++;
             past_key = current_key;
             current_key = form_nums.at(form_place);
-          
+
             // check if the key is supposed to change
             if (past_key != current_key) {
                 // modulate

@@ -1,5 +1,28 @@
 #include "noteplayer.h"
 
+typedef struct repeat_chords {
+    int root;
+    tuple<int, int, int, int> voicing;
+    chord selected_chord;
+}REP_CHORDS;
+
+
+typedef struct repeat_notes {
+    int note;
+    float time;
+}REP_NOTES;
+
+typedef struct repeat_drums {
+    char note_type;
+    float time;
+}REP_DRUMS;
+
+vector<REP_CHORDS> repeat_chords = {};
+vector<REP_NOTES> repeat_melody = {};
+vector<REP_DRUMS> repeat_hat = {};
+vector<REP_DRUMS> repeat_bass = {};
+vector<REP_DRUMS> repeat_snare = {};
+
 tuple<int, int, int, int> closest_voicing(tuple<int, int, int, int> currentVoicing, chord nextChord) {
     tuple<int, int> best = make_tuple(-1, 999); // voicing #, best value
     tuple<int, int, int, int> voicing = make_tuple(0, 0, 0, 0);
@@ -143,7 +166,10 @@ boolean decide_triplet() {
 }
 
 void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string quality, int root, float duration, fluid_synth_t* synth, unordered_map<string, int> roots, float measure, unordered_map<string, int> drum_sounds, int beats) {
-    
+
+    REP_CHORDS repeat_chord = { root, voicing, current_chord };
+    repeat_chords.push_back(repeat_chord);
+
     char what_on = 'a'; // used to determine which chord progression we're on
 
     float h = 2 * duration; // half note
@@ -151,7 +177,7 @@ void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string q
     float e = duration / 2; // eighth note
     float s = e / 2;        // sixteenth note
 
-    vector<float> note_lengths = { w, h+duration, h, duration + e, duration, e + s, e, s }; // note lengths vector to randomly select note length
+    vector<float> note_lengths = { w, h + duration, h, duration + e, duration, e + s, e, s }; // note lengths vector to randomly select note length
 
 
     vector<char> hat_notes = { };
@@ -176,13 +202,13 @@ void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string q
         }
     }
 
-    
+
     for (int i = 0; i < beats; i++) {
         if (!i) {
             bass_notes.at(i) = 'b';
         }
         else {
-            bass_notes.at(i) = bass_notes.at(rand() % 4);
+            bass_notes.at(i) = bass_notes.at(rand() % bass_notes.size());
         }
     }
     if (beats >= 3) { snare_notes.at(4) = 's'; }
@@ -196,8 +222,11 @@ void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string q
 
     thread hat_thread([&]() {
         for (int i = 0; i < 2 * beats; i++) {
-            switch (hat_notes.at(i))
-            {
+            char note_type = hat_notes.at(i);
+            REP_DRUMS repeat = { note_type, e };
+            repeat_hat.push_back(repeat);
+            switch (note_type))
+    {
             case 'r':
                 sleep(e);
                 break;
@@ -210,13 +239,16 @@ void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string q
                 fluid_synth_noteon(synth, 9, drum_sounds["open_hat"], 80);
                 sleep(e);
                 fluid_synth_noteoff(synth, 9, drum_sounds["open_hat"]);
-            }
+    }
         }
-        });
+    });
 
     thread bass_thread([&]() {
         for (int i = 0; i < beats; i++) {
-            switch (bass_notes.at(i))
+            char note_type = bass_notes.at(i);
+            REP_DRUMS repeat = { note_type, duration };
+            repeat_bass.push_back(repeat);
+            switch (note_type)
             {
             case 'r':
                 sleep(duration);
@@ -232,7 +264,10 @@ void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string q
 
     thread snare_thread([&]() {
         for (int i = 0; i < 2 * beats; i++) {
-            switch (snare_notes.at(i))
+            char note_type = snare_notes.at(i);
+            REP_DRUMS repeat = { note_type, e };
+            repeat_snare.push_back(repeat);
+            switch (note_type)
             {
             case 'r':
                 sleep(e);
@@ -252,14 +287,14 @@ void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string q
     float playtime = 0; // initialize time played so far to 0
 
     // play the root in octaves
-    fluid_synth_noteon(synth, 0, rt_val - 12, 127);
-    fluid_synth_noteon(synth, 1, rt_val - 24, 127);
+    fluid_synth_noteon(synth, 0, rt_val - 24, 95);
+    //fluid_synth_noteon(synth, 1, rt_val - 36, 80);
 
     //play chord with chosen voicing
-    fluid_synth_noteon(synth, 2, rt_val + get<0>(voicing), 127);
-    fluid_synth_noteon(synth, 3, rt_val + get<1>(voicing), 127);
-    fluid_synth_noteon(synth, 4, rt_val + get<2>(voicing), 127);
-    fluid_synth_noteon(synth, 5, rt_val + get<3>(voicing), 127);
+    fluid_synth_noteon(synth, 2, rt_val + get<0>(voicing) - 12, 90);
+    fluid_synth_noteon(synth, 3, rt_val + get<1>(voicing) - 12, 90);
+    fluid_synth_noteon(synth, 4, rt_val + get<2>(voicing) - 12, 90);
+    fluid_synth_noteon(synth, 5, rt_val + get<3>(voicing) - 12, 90);
     // chord is now playing
 
     float time = 0;
@@ -273,8 +308,11 @@ void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string q
 
         if (current_chord.get_quality().compare("major") == 0) {
             possible_notes.push_back(0);
+            possible_notes.push_back(0);
             possible_notes.push_back(2);
             possible_notes.push_back(4);
+            possible_notes.push_back(4);
+            possible_notes.push_back(7);
             possible_notes.push_back(7);
             possible_notes.push_back(9);
             possible_notes.push_back(11);
@@ -282,17 +320,23 @@ void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string q
 
         else if (current_chord.get_quality().compare("minor") == 0) {
             possible_notes.push_back(0);
+            possible_notes.push_back(0);
+            possible_notes.push_back(3);
             possible_notes.push_back(3);
             possible_notes.push_back(5);
             possible_notes.push_back(7);
-            possible_notes.push_back(10);
+            possible_notes.push_back(7);
+            possible_notes.push_back(9);
         }
 
         else if (current_chord.get_quality().compare("dominant") == 0) {
-            possible_notes.push_back(0);
             possible_notes.push_back(2);
             possible_notes.push_back(4);
+            possible_notes.push_back(5);
             possible_notes.push_back(7);
+            possible_notes.push_back(7);
+            possible_notes.push_back(9);
+            possible_notes.push_back(10);
             possible_notes.push_back(10);
         }
 
@@ -320,38 +364,51 @@ void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string q
         playtime = playtime + time;
 
         // decide if there should be a rest or not
-        if (decide_rest(false)) { sleep(time); }
+        if (decide_rest(false)) {
+            process_repeat(13, time);
+            sleep(time);
+        }
         //we can only have a triplet if the time is at least a quarter note, to avoid wonkiness
         else if (time >= duration) {
             if (decide_triplet()) {
                 //divide the time by 3, to get a triplet
                 time /= 3;
                 //play the first note
-                fluid_synth_noteon(synth, 7, note, 80);
+                process_repeat(note, time);
+                fluid_synth_noteon(synth, 7, note, 100);
                 sleep(time);
                 fluid_synth_noteoff(synth, 7, note);
 
                 // pick a second note and play it, with the chance of a rest
-                if (decide_rest(true)) { sleep(time); }
+                if (decide_rest(true)) {
+                    process_repeat(13, time);
+                    sleep(time);
+                }
                 else {
                     note_picker = rand() % possible_notes.size();
                     note = possible_notes[note_picker] + rt_val;
-                    fluid_synth_noteon(synth, 7, note, 80);
+                    process_repeat(note, time);
+                    fluid_synth_noteon(synth, 7, note, 100);
                     sleep(time);
                     fluid_synth_noteoff(synth, 7, note);
                 }
                 //pick a third note and play it, with the chance of a rest
-                if (decide_rest(true)) { sleep(time); }
+                if (decide_rest(true)) {
+                    process_repeat(13, time);
+                    sleep(time);
+                }
                 else {
                     note_picker = rand() % possible_notes.size();
                     note = possible_notes[note_picker] + rt_val;
-                    fluid_synth_noteon(synth, 7, note, 80);
+                    process_repeat(note, time);
+                    fluid_synth_noteon(synth, 7, note, 100);
                     sleep(time);
                     fluid_synth_noteoff(synth, 7, note);
                 }
             }
             else {
-                fluid_synth_noteon(synth, 7, note, 80);
+                process_repeat(note, time);
+                fluid_synth_noteon(synth, 7, note, 100);
                 sleep(time);
                 fluid_synth_noteoff(synth, 7, note);
             }
@@ -359,7 +416,8 @@ void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string q
         // if neither a rest nor a triplet, play the note regularly
         else {
             //cout << playtime << " " << measure << endl;
-            fluid_synth_noteon(synth, 7, note, 80);
+            process_repeat(note, time);
+            fluid_synth_noteon(synth, 7, note, 100);
             sleep(time);
             fluid_synth_noteoff(synth, 7, note);
         }
@@ -369,11 +427,135 @@ void play_chord(chord current_chord, tuple<int, int, int, int> voicing, string q
     fluid_synth_noteoff(synth, 0, rt_val - 12);
     fluid_synth_noteoff(synth, 1, rt_val - 24);
     /* Stop the note */
-    fluid_synth_noteoff(synth, 2, rt_val + get<0>(voicing));
-    fluid_synth_noteoff(synth, 3, rt_val + get<1>(voicing));
-    fluid_synth_noteoff(synth, 4, rt_val + get<2>(voicing));
-    fluid_synth_noteoff(synth, 5, rt_val + get<3>(voicing));
+    fluid_synth_noteoff(synth, 2, rt_val + get<0>(voicing) - 12);
+    fluid_synth_noteoff(synth, 3, rt_val + get<1>(voicing) - 12);
+    fluid_synth_noteoff(synth, 4, rt_val + get<2>(voicing) - 12);
+    fluid_synth_noteoff(synth, 5, rt_val + get<3>(voicing) - 12);
 
+    hat_thread.join();
+    bass_thread.join();
+    snare_thread.join();
+}
+
+void process_repeat(int note, float time) {
+    REP_NOTES rep = { note, time };
+    repeat_melody.push_back(rep);
+}
+
+void repeat_drums(char type, float time, char instrument) {
+    REP_DRUMS rep = { type, time };
+    switch (instrument) {
+    case 'h':
+        repeat_hat.push_back(rep);
+        break;
+    case 'b':
+        repeat_bass.push_back(rep);
+        break;
+    case 's':
+        repeat_snare.push_back(rep);
+        break;
+    default:
+        break;
+    }
+}
+
+void repeat(unordered_map<string, int> drum_sounds) {
+    thread hat_thread([&]() {
+        for (int i = 0; i < repeat_hat.size; i++) {
+            char note = repeat_hat.at(i).note_type;
+            float time = repeat_hat.at(i).time;
+            switch (note)
+            {
+            case 'r':
+                sleep(time);
+                break;
+            case 'c':
+                fluid_synth_noteon(synth, 9, drum_sounds["closed_hat"], 80);
+                sleep(time);
+                fluid_synth_noteoff(synth, 9, drum_sounds["closed_hat"]);
+                break;
+            case 'o':
+                fluid_synth_noteon(synth, 9, drum_sounds["open_hat"], 80);
+                sleep(time);
+                fluid_synth_noteoff(synth, 9, drum_sounds["open_hat"]);
+            }
+        }
+        });
+
+    thread bass_thread([&]() {
+        for (int i = 0; i < repeat_bass.size; i++) {
+            char note = repeat_bass.at(i).note_type;
+            float time = repeat_bass.at(i).time;
+            switch (note)
+            {
+            case 'r':
+                sleep(time);
+                break;
+            case 'b':
+                fluid_synth_noteon(synth, 9, drum_sounds["bass_drum"], 127);
+                sleep(time);
+                fluid_synth_noteoff(synth, 9, drum_sounds["bass_drum"]);
+                break;
+            }
+        }
+        });
+
+    thread snare_thread([&]() {
+        for (int i = 0; i < repeat_snare.size; i++) {
+            char note = repeat_snare.at(i).note_type;
+            float time = repeat_snare.at(i).time;
+            switch (note)
+            {
+            case 'r':
+                sleep(time);
+                break;
+            case 's':
+                fluid_synth_noteon(synth, 9, drum_sounds["snare"], 90);
+                sleep(time);
+                fluid_synth_noteoff(synth, 9, drum_sounds["snare"]);
+                break;
+            }
+        }
+        });
+
+    for (int i = 0; i < repeat_chords.size; i++) {
+        /* Play a note */
+        int rt_val = repeat_chords.at(i).root; // root note
+        tuple<int, int, int, int> voicing = repeat_chords.at(i).voicing;
+        float playtime = 0; // initialize time played so far to 0
+
+        // play the root in octaves
+        fluid_synth_noteon(synth, 0, rt_val - 24, 95);
+        //fluid_synth_noteon(synth, 1, rt_val - 36, 80);
+
+        //play chord with chosen voicing
+        fluid_synth_noteon(synth, 2, rt_val + get<0>(voicing) - 12, 90);
+        fluid_synth_noteon(synth, 3, rt_val + get<1>(voicing) - 12, 90);
+        fluid_synth_noteon(synth, 4, rt_val + get<2>(voicing) - 12, 90);
+        fluid_synth_noteon(synth, 5, rt_val + get<3>(voicing) - 12, 90);
+        // chord is now playing
+
+        for (int j = 0; j < repeat_melody.size; j++) {
+            //cout << playtime << " " << measure << endl;
+            int note = repeat_melody.at(j).note;
+            float time = repeat_melody.at(j).time;
+
+            if (note = 13) { sleep(time); }
+            else {
+                fluid_synth_noteon(synth, 7, note, 100);
+                sleep(time);
+                fluid_synth_noteoff(synth, 7, note);
+            }
+        }
+        //kill root notes
+        fluid_synth_noteoff(synth, 0, rt_val - 12);
+        fluid_synth_noteoff(synth, 1, rt_val - 24);
+        /* Stop the note */
+        fluid_synth_noteoff(synth, 2, rt_val + get<0>(voicing) - 12);
+        fluid_synth_noteoff(synth, 3, rt_val + get<1>(voicing) - 12);
+        fluid_synth_noteoff(synth, 4, rt_val + get<2>(voicing) - 12);
+        fluid_synth_noteoff(synth, 5, rt_val + get<3>(voicing) - 12);
+    }
     hat_thread.join();
     bass_thread.join();
     snare_thread.join();

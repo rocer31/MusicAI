@@ -23,3 +23,4 @@ using namespace std;
 tuple<int, int, int, int> closest_voicing(tuple<int, int, int, int>, chord);
 vector<chord> get_prog(string, int, int, chord, chord, chord, chord, chord, chord, chord);
 void play_chord(chord current_chord, tuple<int, int, int, int>, string, int, float, fluid_synth_t*, unordered_map<string, int>, float, unordered_map<string, int>, int);
+void repeat(unordered_map<string, int>);
